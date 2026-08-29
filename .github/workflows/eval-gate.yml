@@ -38,9 +38,21 @@ jobs:
       # (gemma4:31b-cloud, nomic-embed-text). No extra setup needed here —
       # that's the whole point of self-hosting: real local-model inference
       # in CI, not a GitHub-hosted sandbox that can't reach Ollama at all.
+
+            # gemma4:31b-cloud is an Ollama CLOUD model that appears to go idle
+      # after a period of inactivity, returning 404 on /api/chat until
+      # "woken up" by a request. Since pip install above can take several
+      # minutes (dependency resolution), any pre-run warm-up is often
+      # stale by the time pytest actually starts — so warm it up here,
+      # immediately before the eval run, every single time.
+      - name: Warm up cloud model
+        run: |
+          $body = '{"model":"gemma4:31b-cloud","messages":[{"role":"user","content":"hello"}],"stream":false}'
+          Invoke-RestMethod -Uri http://localhost:11434/api/chat -Method Post -Body $body -ContentType 'application/json'
+
       - name: Run eval regression gate
         run: .\venv\Scripts\pytest tests/test_regression.py -v
-
+        
       - name: Upload eval scores
         if: always()
         uses: actions/upload-artifact@v4
