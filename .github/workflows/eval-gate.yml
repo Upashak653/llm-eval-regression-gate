@@ -18,17 +18,19 @@ jobs:
       # own bundled Python via an MSI installer, which fails on this
       # self-hosted Windows runner (likely a permissions issue running
       # non-elevated). Since this runner IS the developer's own machine,
-      # we just use the Python already installed and on PATH — same
-      # interpreter used for local development.
+      # we use the `py` launcher instead of the bare `python` command —
+      # `python` resolves to an unreliable Windows "app execution alias"
+      # stub in this environment, while `py -3.12` correctly finds the
+      # real, working Python 3.12 install.
       - name: Verify Python is available
-        run: python --version
+        run: py -3.12 --version
 
       # venv/ is git-ignored (correctly), so the runner's fresh checkout
       # has no venv — create one here each run, scoped to this job's
       # workspace, rather than relying on any pre-existing environment.
       - name: Create venv and install dependencies
         run: |
-          python -m venv venv
+          py -3.12 -m venv venv
           .\venv\Scripts\pip install -r requirements.txt
 
       # This runner is YOUR machine, with Ollama already running locally
