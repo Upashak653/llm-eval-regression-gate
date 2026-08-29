@@ -14,26 +14,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      # NOTE: actions/setup-python is skipped here. It tries to install its
+      # own bundled Python via an MSI installer, which fails on this
+      # self-hosted Windows runner (likely a permissions issue running
+      # non-elevated). Since this runner IS the developer's own machine,
+      # we just use the Python already installed and on PATH — same
+      # interpreter used for local development.
+      - name: Verify Python is available
+        run: python --version
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      # venv/ is git-ignored (correctly), so the runner's fresh checkout
+      # has no venv — create one here each run, scoped to this job's
+      # workspace, rather than relying on any pre-existing environment.
+      - name: Create venv and install dependencies
+        run: |
+          python -m venv venv
+          .\venv\Scripts\pip install -r requirements.txt
 
-      # NOTE: GitHub-hosted runners can't reach your local Ollama instance.
-      # Two real options for CI (pick when you get here — not needed to
-      # develop locally):
-      #   1. Self-hosted runner on your own machine (Ollama already local).
-      #   2. Install + pull a small model on the runner itself, e.g.:
-      #        curl -fsSL https://ollama.com/install.sh | sh
-      #        ollama serve &
-      #        ollama pull qwen2.5-coder:1.5b   # small enough for CI
-      # Until one of these is wired up, this job will fall back to
-      # MockClient and the gate will pass trivially — fine for proving
-      # the PLUMBING works, not for a real regression signal.
+      # This runner is YOUR machine, with Ollama already running locally
+      # (localhost:11434) and the required models already pulled
+      # (gemma4:31b-cloud, nomic-embed-text). No extra setup needed here —
+      # that's the whole point of self-hosting: real local-model inference
+      # in CI, not a GitHub-hosted sandbox that can't reach Ollama at all.
       - name: Run eval regression gate
-        run: pytest tests/test_regression.py -v
+        run: .\venv\Scripts\pytest tests/test_regression.py -v
 
       - name: Upload eval scores
         if: always()
