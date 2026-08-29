@@ -1,0 +1,43 @@
+name: LLM Eval Regression Gate
+
+on:
+  pull_request:
+    paths:
+      - "app/target_app/**"
+      - "app/eval/**"
+      - "baselines/**"
+  workflow_dispatch: {}
+
+jobs:
+  eval-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # NOTE: GitHub-hosted runners can't reach your local Ollama instance.
+      # Two real options for CI (pick when you get here — not needed to
+      # develop locally):
+      #   1. Self-hosted runner on your own machine (Ollama already local).
+      #   2. Install + pull a small model on the runner itself, e.g.:
+      #        curl -fsSL https://ollama.com/install.sh | sh
+      #        ollama serve &
+      #        ollama pull qwen2.5-coder:1.5b   # small enough for CI
+      # Until one of these is wired up, this job will fall back to
+      # MockClient and the gate will pass trivially — fine for proving
+      # the PLUMBING works, not for a real regression signal.
+      - name: Run eval regression gate
+        run: pytest tests/test_regression.py -v
+
+      - name: Upload eval scores
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-scores
+          path: baselines/baseline_scores.json
